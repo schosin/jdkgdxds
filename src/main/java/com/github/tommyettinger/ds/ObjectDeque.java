@@ -459,6 +459,7 @@ public class ObjectDeque<T> extends AbstractList<T> implements Lisque<T>,
 			ensureCapacity(gapSize);
 			return oldSize;
 		}
+		
 		if (size == 0) {
 			this.head = 0;
 			this.tail = gapSize - 1;
@@ -466,8 +467,11 @@ public class ObjectDeque<T> extends AbstractList<T> implements Lisque<T>,
 				//noinspection unchecked
 				this.items = (T[]) new Object[gapSize];
 			}
+			
 			return 0;
-		} else if (size == 1) {
+		} 
+		
+		if (size == 1) {
 			if (items.length < gapSize + size) {
 				T item = this.items[head];
 				//noinspection unchecked
@@ -483,25 +487,26 @@ public class ObjectDeque<T> extends AbstractList<T> implements Lisque<T>,
 					this.tail = gapSize;
 					return 1;
 				}
-			} else {
-				if (index == 0) {
-					if (head != gapSize) {
-						this.items[gapSize] = this.items[head];
-						this.items[head] = null;
-					}
-					this.head = 0;
-					this.tail = gapSize;
-					return 0;
-				} else {
-					if (head != 0) {
-						this.items[0] = this.items[head];
-						this.items[head] = null;
-					}
-					this.head = 0;
-					this.tail = gapSize;
-					return 1;
+			} 
+		
+			if (index == 0) {
+				if (head != gapSize) {
+					this.items[gapSize] = this.items[head];
+					this.items[head] = null;
 				}
+				this.head = 0;
+				this.tail = gapSize;
+				return 0;
+			} 
+			
+			if (head != 0) {
+				this.items[0] = this.items[head];
+				this.items[head] = null;
 			}
+			
+			this.head = 0;
+			this.tail = gapSize;
+			return 1;
 		}
 
 		final @Nullable T[] items = this.items;
@@ -516,56 +521,63 @@ public class ObjectDeque<T> extends AbstractList<T> implements Lisque<T>,
 						System.arraycopy(items, head, items, 0, index);
 					this.head = 0;
 				}
+				
 				System.arraycopy(items, head + index, items, index + gapSize, size - this.head - index);
 				this.tail += gapSize - (head - this.head);
+				
 				return index;
-			} else {
-				if (head + index <= items.length) {
-					if (head - gapSize >= 0) {
-						System.arraycopy(items, head, items, head - gapSize, index);
-						this.head -= gapSize;
-					} else {
-						System.arraycopy(items, head + index, items, head + index + gapSize, items.length - (head + index + gapSize));
-						this.tail += gapSize;
-					}
-					return this.head + index;
-				} else {
-					int wrapped = head + index - items.length;
-					System.arraycopy(items, wrapped, items, wrapped + gapSize, tail + 1 - wrapped);
-					this.tail += gapSize;
-					return wrapped;
-				}
 			}
-		} else {
-			@SuppressWarnings("unchecked") final @Nullable T[] newArray = (T[]) new Object[newSize];
+			
+			if (head + index <= items.length) {
+				if (head - gapSize >= 0) {
+					System.arraycopy(items, head, items, head - gapSize, index);
+					this.head -= gapSize;
+				} else {
+					System.arraycopy(items, head + index, items, head + index + gapSize, items.length - (head + index + gapSize));
+					this.tail += gapSize;
+				}
+				
+				return this.head + index;
+			} 
+			
+			int wrapped = head + index - items.length;
+			System.arraycopy(items, wrapped, items, wrapped + gapSize, tail + 1 - wrapped);
+			this.tail += gapSize;
+			
+			return wrapped;
+		}
+		
+		@SuppressWarnings("unchecked") final @Nullable T[] newArray = (T[]) new Object[newSize];
 
-			if (head <= tail) {
-				// Continuous
+		if (head <= tail) {
+			// Continuous
+			if (index > 0)
+				System.arraycopy(items, head, newArray, 0, index);
+			this.head = 0;
+			System.arraycopy(items, head + index, newArray, index + gapSize, size - head - index);
+			this.tail += gapSize;
+		} else {
+			// Wrapped
+			final int headPart = items.length - head;
+			
+			if (index < headPart) {
 				if (index > 0)
 					System.arraycopy(items, head, newArray, 0, index);
 				this.head = 0;
-				System.arraycopy(items, head + index, newArray, index + gapSize, size - head - index);
-				this.tail += gapSize;
+				System.arraycopy(items, head + index, newArray, index + gapSize, headPart - index);
+				System.arraycopy(items, 0, newArray, index + gapSize + headPart - index, tail + 1);
 			} else {
-				// Wrapped
-				final int headPart = items.length - head;
-				if (index < headPart) {
-					if (index > 0)
-						System.arraycopy(items, head, newArray, 0, index);
-					this.head = 0;
-					System.arraycopy(items, head + index, newArray, index + gapSize, headPart - index);
-					System.arraycopy(items, 0, newArray, index + gapSize + headPart - index, tail + 1);
-				} else {
-					System.arraycopy(items, head, newArray, 0, headPart);
-					int wrapped = index - headPart; // same as: head + index - values.length;
-					System.arraycopy(items, 0, newArray, headPart, wrapped);
-					System.arraycopy(items, wrapped, newArray, headPart + wrapped + gapSize, tail + 1 - wrapped);
-				}
-				this.tail = size + gapSize - 1;
+				System.arraycopy(items, head, newArray, 0, headPart);
+				int wrapped = index - headPart; // same as: head + index - values.length;
+				System.arraycopy(items, 0, newArray, headPart, wrapped);
+				System.arraycopy(items, wrapped, newArray, headPart + wrapped + gapSize, tail + 1 - wrapped);
 			}
-			this.items = newArray;
-			return index;
+			
+			this.tail = size + gapSize - 1;
 		}
+		
+		this.items = newArray;
+		return index;
 	}
 
 	/**
